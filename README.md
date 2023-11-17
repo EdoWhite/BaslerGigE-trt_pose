@@ -1,16 +1,12 @@
-# trt_pose
+# trt_pose for Basler GigE Cameras
 
-> Want to detect hand poses?  Check out the new [trt_pose_hand](http://github.com/NVIDIA-AI-IOT/trt_pose_hand) project for real-time hand pose and gesture recognition!
-
-<img src="https://user-images.githubusercontent.com/4212806/67125332-71a64580-f1a9-11e9-8ee1-e759a38de215.gif" height=256/>
-
-trt_pose is aimed at enabling real-time pose estimation on NVIDIA Jetson.  You may find it useful for other NVIDIA platforms as well.  Currently the project includes
+trt_pose is aimed at enabling real-time pose estimation on NVIDIA Jetson.  This repository is focused on using trt_pose with a data stream from a Basler GigE camera.  You may find it useful for other NVIDIA platforms as well.  Currently the project includes
 
 - Pre-trained models for human pose estimation capable of running in real time on Jetson Nano.  This makes it easy to detect features like ``left_eye``, ``left_elbow``, ``right_ankle``, etc.
 
 - Training scripts to train on any keypoint task data in [MSCOCO](https://cocodataset.org/#home) format.  This means you can experiment with training trt_pose for keypoint detection tasks other than human pose.
 
-To get started, follow the instructions below.  If you run into any issues please [let us know](../../issues).
+To get started, follow the instructions below.
 
 ## Getting Started
 
@@ -58,9 +54,11 @@ To run the live Jupyter Notebook demo on real-time camera input, follow these st
 
 2. Place the downloaded weights in the [tasks/human_pose](tasks/human_pose) directory
 
-3. Open and follow the [live_demo.ipynb](tasks/human_pose/live_demo.ipynb) notebook
+3. Open and follow the [live_demo.ipynb](tasks/human_pose/live_demo.ipynb) notebook. The live demo works on images, videos, and live stream from a Basler GigE camera.
 
     > You may need to modify the notebook, depending on which model you use
+
+4. In the LiveCamera folder there is a python script that performs pose estimation on the stream coming from a Basler GigE Camera. To use the GigE camera, additional software should be installed. Refer to the official Basler documentation.
 
 ## See also
 
