@@ -64,7 +64,7 @@ new_width = camera.Width.Value - camera.Width.Inc
 if new_width >= camera.Width.Min:
     camera.Width.Value = new_width
 
-cv2.namedWindow("Camera Feed", cv2.WINDOW_NORMAL)
+#cv2.namedWindow("Camera Feed", cv2.WINDOW_NORMAL)
 cv2.namedWindow("Pose Feed", cv2.WINDOW_NORMAL)
 
 camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
@@ -76,8 +76,8 @@ while cv2.waitKey(1) != 27:
         # Convert the image to OpenCV format
         img = grabResult.Array
         if img is not None:
-            img = cv2.cvtColor(img, cv2.COLOR_BAYER_BG2BGR)
-            cv2.imshow("Camera Feed", img)
+            #img = cv2.cvtColor(img, cv2.COLOR_BAYER_BG2BGR)
+            #cv2.imshow("Camera Feed", img)
 
             res = execute_frame(img)
             cv2.imshow("Pose Feed", res)
