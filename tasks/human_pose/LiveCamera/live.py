@@ -14,6 +14,13 @@ from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
 
+WIDTH = 256
+HEIGHT = 256
+data = torch.zeros((1, 3, HEIGHT, WIDTH)).cuda()
+
+mean = torch.Tensor([0.485, 0.456, 0.406]).cuda()
+std = torch.Tensor([0.229, 0.224, 0.225]).cuda()
+device = torch.device('cuda')
 
 with open('../human_pose.json', 'r') as f:
     human_pose = json.load(f)
@@ -23,20 +30,12 @@ topology = trt_pose.coco.coco_category_to_topology(human_pose)
 num_parts = len(human_pose['keypoints'])
 num_links = len(human_pose['skeleton'])
 
-WIDTH = 256
-HEIGHT = 256
-data = torch.zeros((1, 3, HEIGHT, WIDTH)).cuda()
-
 OPTIMIZED_MODEL = '../densenet121_baseline_att_256x256_trt.pth'
 model_trt = TRTModule()
 model_trt.load_state_dict(torch.load(OPTIMIZED_MODEL))
 
 parse_objects = ParseObjects(topology)
 draw_objects = DrawObjects(topology)
-
-mean = torch.Tensor([0.485, 0.456, 0.406]).cuda()
-std = torch.Tensor([0.229, 0.224, 0.225]).cuda()
-device = torch.device('cuda')
 
 def preprocess_jpeg(image):
     global device

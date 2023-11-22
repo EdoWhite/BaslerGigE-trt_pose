@@ -21,22 +21,23 @@ To get started with trt_pose, follow these steps.
     ```python
     git clone https://github.com/NVIDIA-AI-IOT/torch2trt
     cd torch2trt
-    sudo python3 setup.py install --plugins
+    pip3 install packages
+    python3 setup.py install --plugins --user
     ```
 
 3. Install other miscellaneous packages
 
     ```python
-    sudo pip3 install tqdm cython pycocotools
+    pip3 install tqdm cython pycocotools
     sudo apt-get install python3-matplotlib
     ```
     
-### Step 2 - Install trt_pose
+### Step 2 - Install trt_pose for GigE Basler Cameras
 
 ```python
-git clone https://github.com/NVIDIA-AI-IOT/trt_pose
-cd trt_pose
-sudo python3 setup.py install
+git clone https://github.com/EdoWhite/BaslerGigE-trt_pose.git
+cd BaslerGigE-trt_pose
+python3 setup.py install --user
 ```
 
 ### Step 3 - Run the example notebook
@@ -58,7 +59,12 @@ To run the live Jupyter Notebook demo on real-time camera input, follow these st
 
     > You may need to modify the notebook, depending on which model you use
 
-4. In the LiveCamera folder there is a python script that performs pose estimation on the stream coming from a Basler GigE Camera. To use the GigE camera, additional software should be installed. Refer to the official Basler documentation.
+4. In the LiveCamera folder there is a python script that performs pose estimation on the stream coming from a Basler GigE Camera. To use the GigE camera, additional software should be installed. Refer to the official Basler documentation. Run the demo with:
+
+    ```python
+    cd BaslerGigE-trt_pose/tasks/human_pose/LiveCamera/
+    python3 live.py
+    ```
 
 ## See also
 
