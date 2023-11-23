@@ -101,7 +101,7 @@ new_width = camera.Width.Value - camera.Width.Inc
 if new_width >= camera.Width.Min:
     camera.Width.Value = new_width
 
-#cv2.namedWindow("Pose Feed", cv2.WINDOW_NORMAL)
+cv2.namedWindow("Pose Feed", cv2.WINDOW_NORMAL)
 
 camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
 
@@ -134,7 +134,7 @@ while cv2.waitKey(1) != 27:
             except BrokenPipeError:
                 print("Connection with the receiver is broken!")
                 break
-            #cv2.imshow("Pose Feed", res[0])
+            cv2.imshow("Pose Feed", res[0])
             frame_count += 1
 
     grabResult.Release()

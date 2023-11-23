@@ -7,24 +7,37 @@ def handle_client(connection, address, camera_id):
     print(f"Accepted connection from {address} for Camera {camera_id}")
 
     try:
+        buffer = b""
         while True:
             # Receive joint coordinates
             data = connection.recv(1024)
             if not data:
                 break
 
-            # Print the raw received data
-            print("Raw Received Data:", data)
-            # Decode and process the received data (joint coordinates)
-            received_joint_coordinates = json.loads(data.decode())
-            print(f"Camera {camera_id} Joint Coordinates: {received_joint_coordinates}")
+            # Accumulate data in the buffer
+            buffer += data
 
+            while b"]][" in buffer:
+                # Split the buffer into separate JSON objects
+                start_index = buffer.find(b"]][[") + 2
+                json_obj = buffer[:start_index]
+                buffer = buffer[start_index:]
+
+                try:
+                    # Attempt to decode a JSON object
+                    received_joint_coordinates = json.loads(json_obj.decode())
+                    print(f"Camera {camera_id} Joint Coordinates: {received_joint_coordinates}")
+
+                except json.JSONDecodeError:
+                    # Continue accumulating data if a complete JSON object is not yet received
+                    continue
     except Exception as e:
         print(f"Error handling connection for Camera {camera_id}: {e}")
 
     finally:
         # Clean up the connection
         connection.close()
+
 
 parser = argparse.ArgumentParser(description='Send joint coordinates over a network.')
 parser.add_argument('--ports', nargs='+', type=int, required=True, help='List of port numbers for communication with cameras.')
