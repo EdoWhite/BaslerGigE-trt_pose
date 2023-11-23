@@ -123,15 +123,17 @@ while cv2.waitKey(1) != 27:
         img = grabResult.Array
         if img is not None:
             res = execute_frame(img)
+             # Print coordinates on stdout
+            print(f"Processed Coordinates: {res[1]}")
             # Send joint coordinates to the receiver
             joint_coordinates_str = json.dumps(res[1])
             try:
-                sock.sendall(joint_coordinates_str.encode())
+                enc = joint_coordinates_str.encode()
+                sock.sendall(enc)
+                print(f"Encoded Coordinates: {enc}")
             except BrokenPipeError:
                 print("Connection with the receiver is broken!")
                 break
-            # Print coordinates on stdout
-            print(res[1])
             #cv2.imshow("Pose Feed", res[0])
             frame_count += 1
 
