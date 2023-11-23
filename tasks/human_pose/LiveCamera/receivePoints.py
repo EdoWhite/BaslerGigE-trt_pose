@@ -17,7 +17,7 @@ def handle_client(connection, address, camera_id):
             # Accumulate data in the buffer
             buffer += data
 
-            while b"]][" in buffer:
+            while b"]][[" in buffer:
                 # Split the buffer into separate JSON objects
                 start_index = buffer.find(b"]][[") + 2
                 json_obj = buffer[:start_index]
