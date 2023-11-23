@@ -14,6 +14,7 @@ from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
 import time
+import socket
 
 WIDTH = 256
 HEIGHT = 256
@@ -99,6 +100,13 @@ camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
 frame_count = 0
 start_time = time.time()
 
+# Create a socket object
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+# Define the address and port of the receiving computer
+receiver_address = ('10.7.129.42', 12345)
+sock.connect(receiver_address)
+
 while cv2.waitKey(1) != 27:
     grabResult = camera.RetrieveResult(5000, pylon.TimeoutHandling_ThrowException)
 
@@ -107,6 +115,10 @@ while cv2.waitKey(1) != 27:
         img = grabResult.Array
         if img is not None:
             res = execute_frame(img)
+            # Send joint coordinates to the receiver
+            joint_coordinates_str = json.dumps(res[1])
+            sock.sendall(joint_coordinates_str.encode())
+            # Print coordinates on stdout
             print(res[1])
             #cv2.imshow("Pose Feed", res[0])
             frame_count += 1
@@ -123,3 +135,4 @@ while cv2.waitKey(1) != 27:
 # Release the OpenCV window and close the camera
 cv2.destroyAllWindows()
 camera.Close()
+sock.close()
