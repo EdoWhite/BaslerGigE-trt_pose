@@ -3,14 +3,14 @@ import json
 import argparse
 import threading
 
-def handle_client(connection, address, camera_id):
-    print(f"Accepted connection from {address} for Camera {camera_id}")
+def handle_client(connection, camera_id):
+    print(f"Accepted connection for Camera {camera_id}")
 
     try:
         buffer = b""
         while True:
             # Receive joint coordinates
-            data = connection.recv(1024)
+            data, addr = connection.recv(1024)
             if not data:
                 break
 
@@ -57,7 +57,7 @@ for i, port in enumerate(receiver_ports):
 threads = []
 for i, sock in enumerate(sockets):
     #connection, address = sock.recvfrom(1024)
-    thread = threading.Thread(target=handle_client, args=(sock, None, i + 1))
+    thread = threading.Thread(target=handle_client, args=(sock, i + 1))
     threads.append(thread)
     thread.start()
 
