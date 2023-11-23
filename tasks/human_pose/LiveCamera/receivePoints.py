@@ -13,6 +13,8 @@ def handle_client(connection, address, camera_id):
             if not data:
                 break
 
+            # Print the raw received data
+            print("Raw Received Data:", data)
             # Decode and process the received data (joint coordinates)
             received_joint_coordinates = json.loads(data.decode())
             print(f"Camera {camera_id} Joint Coordinates: {received_joint_coordinates}")
