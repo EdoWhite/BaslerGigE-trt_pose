@@ -15,6 +15,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 import socket
+import argparse
+
+parser = argparse.ArgumentParser(description='Send joint coordinates over a network.')
+parser.add_argument('--ip', type=str, required=True, help='IP address of the receiving computer.')
+parser.add_argument('--port', type=int, required=True, help='Port number for communication.')
+args = parser.parse_args()
+receiver_ip = args.ip
+receiver_port = args.port
 
 WIDTH = 256
 HEIGHT = 256
@@ -104,7 +112,7 @@ start_time = time.time()
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 # Define the address and port of the receiving computer
-receiver_address = ('10.7.129.42', 12345)
+receiver_address = (receiver_ip, receiver_port)
 sock.connect(receiver_address)
 
 while cv2.waitKey(1) != 27:
