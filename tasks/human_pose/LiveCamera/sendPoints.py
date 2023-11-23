@@ -125,8 +125,7 @@ while cv2.waitKey(1) != 27:
             res = execute_frame(img)
             print(f"Processed Coordinates: {res[1]}")
             # Send joint coordinates to the receiver
-            joint_coordinates = res[1] if res[1] else []
-            joint_coordinates_str = json.dumps(joint_coordinates)
+            joint_coordinates_str = json.dumps(res[1])
             try:
                 enc = joint_coordinates_str.encode()
                 sock.sendall(enc)
