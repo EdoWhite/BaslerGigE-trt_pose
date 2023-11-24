@@ -3,14 +3,14 @@ import json
 import argparse
 import threading
 
-def handle_client(connection, address, camera_id):
-    print(f"Accepted connection from {address} for Camera {camera_id}")
+def handle_client(connection, camera_id):
+    print(f"Accepted connection for Camera {camera_id}")
 
     try:
         buffer = b""
         while True:
             # Receive joint coordinates
-            data = connection.recv(1024)
+            data, addr = connection.recv(1024)
             if not data:
                 break
 
@@ -40,23 +40,25 @@ def handle_client(connection, address, camera_id):
 
 
 parser = argparse.ArgumentParser(description='Send joint coordinates over a network.')
+#parser.add_argument('--ip', type=str, required=True, help='IP of th receiver machine')
 parser.add_argument('--ports', nargs='+', type=int, required=True, help='List of port numbers for communication with cameras.')
 args = parser.parse_args()
 receiver_ports = args.ports
+#receiver_ip = args.ip
 
 # Create a socket for each camera
 sockets = []
 for i, port in enumerate(receiver_ports):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(('', port))
-    sock.listen(1)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     sockets.append(sock)
 
 # Create a thread for each camera
 threads = []
 for i, sock in enumerate(sockets):
-    connection, address = sock.accept()
-    thread = threading.Thread(target=handle_client, args=(connection, address, i + 1))
+    #connection, address = sock.recvfrom(1024)
+    thread = threading.Thread(target=handle_client, args=(sock, i + 1))
     threads.append(thread)
     thread.start()
 

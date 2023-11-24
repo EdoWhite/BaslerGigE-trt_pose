@@ -18,12 +18,9 @@ import socket
 import argparse
 
 parser = argparse.ArgumentParser(description='Send joint coordinates over a network.')
-parser.add_argument('--receiver_ip', type=str, required=True, help='Receiver host IP')
 parser.add_argument('--port', type=int, required=True, help='Port number for communication.')
 args = parser.parse_args()
-port = args.port
-ip = args.receiver_ip
-
+sender_port = args.port
 
 WIDTH = 256
 HEIGHT = 256
@@ -110,8 +107,9 @@ frame_count = 0
 start_time = time.time()
 
 # Create a socket object
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-sock.connect((ip, port))
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+#sock.bind(('0.0.0.0', sender_port))
 
 while cv2.waitKey(1) != 27:
     grabResult = camera.RetrieveResult(5000, pylon.TimeoutHandling_ThrowException)
@@ -124,12 +122,8 @@ while cv2.waitKey(1) != 27:
             print(f"Processed Coordinates: {res[1]}")
             # Send joint coordinates to the receiver
             joint_coordinates_str = json.dumps(res[1])
-            try:
-                enc = joint_coordinates_str.encode()
-                sock.sendall(enc)
-            except BrokenPipeError:
-                print("Connection with the receiver is broken!")
-                break
+            enc = joint_coordinates_str.encode()
+            sock.sendto(enc, ('10.7.143.255', sender_port))
             cv2.imshow("Pose Feed", res[0])
             frame_count += 1
 
