@@ -50,7 +50,7 @@ receiver_ports = args.ports
 sockets = []
 for i, port in enumerate(receiver_ports):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind(('0.0.0.0', port))
+    sock.bind(('', port))
     sockets.append(sock)
 
 # Create a thread for each camera

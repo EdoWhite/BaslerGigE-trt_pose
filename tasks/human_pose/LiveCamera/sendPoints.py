@@ -107,9 +107,9 @@ frame_count = 0
 start_time = time.time()
 
 # Create a socket object
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-sock.bind(('0.0.0.0', sender_port))
+#sock.bind(('0.0.0.0', sender_port))
 
 while cv2.waitKey(1) != 27:
     grabResult = camera.RetrieveResult(5000, pylon.TimeoutHandling_ThrowException)
