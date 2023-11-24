@@ -40,17 +40,17 @@ def handle_client(connection, camera_id):
 
 
 parser = argparse.ArgumentParser(description='Send joint coordinates over a network.')
-parser.add_argument('--ip', type=str, required=True, help='IP of th receiver machine')
+#parser.add_argument('--ip', type=str, required=True, help='IP of th receiver machine')
 parser.add_argument('--ports', nargs='+', type=int, required=True, help='List of port numbers for communication with cameras.')
 args = parser.parse_args()
 receiver_ports = args.ports
-receiver_ip = args.ip
+#receiver_ip = args.ip
 
 # Create a socket for each camera
 sockets = []
 for i, port in enumerate(receiver_ports):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind((receiver_ip, port))
+    sock.bind(('0.0.0.0', port))
     sockets.append(sock)
 
 # Create a thread for each camera
