@@ -123,7 +123,7 @@ while cv2.waitKey(1) != 27:
             # Send joint coordinates to the receiver
             joint_coordinates_str = json.dumps(res[1])
             enc = joint_coordinates_str.encode()
-            sock.sendto(enc, ('<broadcast>', sender_port))
+            sock.sendto(enc, ('10.7.143.255', sender_port))
             cv2.imshow("Pose Feed", res[0])
             frame_count += 1
 

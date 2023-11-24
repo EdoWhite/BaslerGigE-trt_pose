@@ -51,6 +51,7 @@ sockets = []
 for i, port in enumerate(receiver_ports):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(('', port))
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     sockets.append(sock)
 
 # Create a thread for each camera
