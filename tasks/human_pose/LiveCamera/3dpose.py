@@ -1,165 +1,136 @@
-import socket
-import json
-import argparse
-import threading
-import numpy as np
+from pypylon import pylon
 import cv2
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+import json
+import trt_pose.coco
+import trt_pose.models
+import torch
+from torch2trt import TRTModule
+from trt_pose.draw_objects import DrawObjects
+from trt_pose.parse_objects import ParseObjects
+import cv2
+import torchvision.transforms as transforms
+import PIL.Image
+from PIL import Image
+import numpy as np
+import argparse
+from basler_utils import frame_extractor
 
-def visualize_3d_pose(points_3d):
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
+parser = argparse.ArgumentParser(description='3D pose from 2D')
+parser.add_argument('--calibration_matrix', type=str, required=True, help='')
+args = parser.parse_args()
+calibration = args.calibration_matrix
 
-    # Extract x, y, and z coordinates
-    x = points_3d[:, 0]
-    y = points_3d[:, 1]
-    z = points_3d[:, 2]
+WIDTH = 256
+HEIGHT = 256
+data = torch.zeros((1, 3, HEIGHT, WIDTH)).cuda()
 
-    # Plot 3D points
-    ax.scatter(x, y, z, c='r', marker='o')
+mean = torch.Tensor([0.485, 0.456, 0.406]).cuda()
+std = torch.Tensor([0.229, 0.224, 0.225]).cuda()
+device = torch.device('cuda')
 
-    # Set labels
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_zlabel('Z')
+with open('../human_pose.json', 'r') as f:
+    human_pose = json.load(f)
 
-    plt.show()
+topology = trt_pose.coco.coco_category_to_topology(human_pose)
 
-def triangulate(joints_cam1, joints_cam2, P1, P2):
-    # Perform triangulation to estimate 3D coordinates
-    homogeneous_coords_cam1 = np.hstack((np.array(joints_cam1), np.ones((len(joints_cam1), 1))))
-    homogeneous_coords_cam2 = np.hstack((np.array(joints_cam2), np.ones((len(joints_cam2), 1))))
+num_parts = len(human_pose['keypoints'])
+num_links = len(human_pose['skeleton'])
 
-    # Use OpenCV's triangulatePoints to perform triangulation
-    points_4d = cv2.triangulatePoints(P1, P2, homogeneous_coords_cam1.T, homogeneous_coords_cam2.T)
-    points_3d = cv2.convertPointsFromHomogeneous(points_4d.T).reshape(-1, 3)
+OPTIMIZED_MODEL = '../densenet121_baseline_att_256x256_trt.pth'
+model_trt = TRTModule()
+model_trt.load_state_dict(torch.load(OPTIMIZED_MODEL))
 
-    return points_3d
+parse_objects = ParseObjects(topology)
+draw_objects = DrawObjects(topology)
 
-def handle_client(connection, address, camera_id, calibration_matrices):
-    print(f"Accepted connection from {address} for Camera {camera_id}")
+def preprocess_jpeg(image):
+    global device
+    device = torch.device('cuda')
+    image = cv2.resize(image, (WIDTH, HEIGHT))
+    image = transforms.functional.to_tensor(image).to(device)
+    image.sub_(mean[:, None, None]).div_(std[:, None, None])
+    return image[None, ...]
 
-    try:
-        buffer = b""
-        joints_cam1 = None
-        joints_cam2 = None
+def get_joint_coordinates(image, counts, objects, peaks):
+    joint_coordinates = []
 
-        while True:
-            # Receive joint coordinates
-            data = connection.recv(1024)
-            if not data:
-                break
+    height, width, _ = image.shape
+    #K = topology.shape[0]
 
-            # Accumulate data in the buffer
-            buffer += data
+    count = int(counts[0])
+    for i in range(count):
+        obj = objects[0][i]
+        coordinates = []
 
-            while b"]][[" in buffer:
-                # Split the buffer into separate JSON objects
-                start_index = buffer.find(b"]][[") + 2
-                json_obj = buffer[:start_index]
-                buffer = buffer[start_index:]
+        for j in range(len(obj)):
+            k = int(obj[j])
+            if k >= 0:
+                peak = peaks[0][j][k]
+                x = round(float(peak[1]) * width)
+                y = round(float(peak[0]) * height)
+                coordinates.append((x, y))
 
-                try:
-                    # Attempt to decode a JSON object
-                    received_joint_coordinates = json.loads(json_obj.decode())
-                    print(f"Camera {camera_id} Joint Coordinates: {received_joint_coordinates}")
+        joint_coordinates.append(coordinates)
+    return joint_coordinates
 
-                    if camera_id == 1:
-                        joints_cam1 = received_joint_coordinates
-                    elif camera_id == 2:
-                        joints_cam2 = received_joint_coordinates
+def execute_frame(image):
+    data = preprocess_jpeg(image)
+    cmap, paf = model_trt(data)
+    cmap, paf = cmap.detach().cpu(), paf.detach().cpu()
+    counts, objects, peaks = parse_objects(cmap, paf)#, cmap_threshold=0.15, link_threshold=0.15)
 
-                    if joints_cam1 and joints_cam2:
-                        # Perform triangulation when coordinates from both cameras are available
-                        P1, P2 = calibration_matrices[camera_id - 1]
-                        # Ensure that P1 and P2 are the correct camera matrices obtained during calibration
-                        P1, P2 = np.array(P1), np.array(P2)
+    joint_coordinates = get_joint_coordinates(image, counts, objects, peaks)
+    
+    draw_objects(image, counts, objects, peaks)
+    rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    return rgb_image, joint_coordinates
 
-                        # Perform triangulation to get 3D coordinates
-                        points_3d = triangulate(joints_cam1, joints_cam2, P1, P2)
-                        print(f"3D Coordinates: {points_3d}")
+def get_calib_parameters():
+    fs = cv2.FileStorage(calibration, cv2.FILE_STORAGE_READ)
+    n_cams = int(fs.getNode("nb_camera").real())
+    calib_data = {}
+    for i in range(n_cams):
+        name = "camera_"+str(i)
+        cam = fs.getNode( name )
+        calib_data[name]= {
+                    "camera_matrix" : cam.getNode("camera_matrix").mat(),
+                    "distortion_vector" : cam.getNode("distortion_vector").mat(),
+                    "camera_pose_matrix" : cam.getNode("camera_pose_matrix").mat(),
+                    "img_width" : cam.getNode("img_width").real(),
+                    "img_height" : cam.getNode("img_height").real()
+                }
+    fs.release()
+    return calib_data
 
-                        # Visualize the 3D pose
-                        visualize_3d_pose(points_3d)
+frame_extr = frame_extractor()
+frame_extr.start_cams()
 
-                except json.JSONDecodeError:
-                    # Continue accumulating data if a complete JSON object is not yet received
-                    continue
+while cv2.waitKey(1) != 27:
+    #Get Calib Matrices
+    calib = get_calib_parameters()
+    """
+    for index, (camera_name, camera_data) in enumerate(calib.items()):
+        print(f"  Camera {index} ({camera_name}):")
+        print(f"  Camera Matrix:\n{camera_data['camera_matrix']}")
+        print(f"  Distortion Vector:\n{camera_data['distortion_vector']}")
+        print(f"  Camera Pose Matrix:\n{camera_data['camera_pose_matrix']}")
+        print(f"  Image Width: {camera_data['img_width']}")
+        print(f"  Image Height: {camera_data['img_height']}")
+        print("\n")
+    """
+    # Get Frames
+    #frames = frame_extr.grab_one_frame_per_camera()
+    frames = frame_extr.grab_multiple_frames()
 
-    except Exception as e:
-        print(f"Error handling connection for Camera {camera_id}: {e}")
+    # Get 2D coordinates
+    joints = []
+    for index, frame in enumerate(frames):
+        coord = execute_frame(frame)[1]
+        joints.append(coord)
+        print(f"Coordinates frame {index}: {coord}")
 
-    finally:
-        # Clean up the connection
-        connection.close()
+    # Triangulate
 
-def main():
-    parser = argparse.ArgumentParser(description='Send joint coordinates over a network.')
-    parser.add_argument('--ports', nargs='+', type=int, required=True, help='List of port numbers for communication with cameras.')
-    args = parser.parse_args()
-    receiver_ports = args.ports
 
-    # Sample intrinsic parameters obtained during camera calibration
-    fx = 1000.0  # Focal length in pixels (along x-axis)
-    fy = 1000.0  # Focal length in pixels (along y-axis)
-    cx = 640.0   # Principal point x-coordinate in pixels
-    cy = 480.0   # Principal point y-coordinate in pixels
+frame_extr.stop_multiple_cams()
 
-    # Define the camera matrix (intrinsic matrix)
-    K = np.array([[fx, 0, cx],
-                [0, fy, cy],
-                [0, 0, 1]])
-
-    # Assuming no distortion for simplicity
-    dist_coeffs = np.zeros((4, 1))
-
-    # Create the projection matrix P1 for camera 1
-    R1 = np.eye(3)  # Identity rotation matrix
-    T1 = np.zeros((3, 1))  # Translation vector
-
-    P1 = np.hstack((K, np.zeros((3, 1))))
-
-    # Create the projection matrix P2 for camera 2 (assuming a baseline translation)
-    baseline_translation = 0.1  # Example baseline translation in meters
-    T2 = np.array([[baseline_translation], [0], [0]])
-
-    # Rotation matrix for camera 2 (you may need to adjust this based on your setup)
-    # For simplicity, we assume the cameras are parallel, so R2 is the same as R1
-    R2 = R1
-
-    P2 = np.hstack((K, -R2 @ T2))
-
-    # Sample values for P1 and P2 matrices
-    sample_P1 = P1.tolist()
-    sample_P2 = P2.tolist()
-
-    # Now you can use these sample values in your main code
-    calibration_matrices = [sample_P1, sample_P2]
-
-    # Create a socket for each camera
-    sockets = []
-    for i, port in enumerate(receiver_ports):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.bind(('', port))
-        sock.listen(1)
-        sockets.append(sock)
-
-    # Create a thread for each camera
-    threads = []
-    for i, sock in enumerate(sockets):
-        connection, address = sock.accept()
-        thread = threading.Thread(target=handle_client, args=(connection, address, i + 1, calibration_matrices))
-        threads.append(thread)
-        thread.start()
-
-    # Wait for all threads to finish
-    for thread in threads:
-        thread.join()
-
-    # Close all sockets
-    for sock in sockets:
-        sock.close()
-
-if __name__ == "__main__":
-    main()
