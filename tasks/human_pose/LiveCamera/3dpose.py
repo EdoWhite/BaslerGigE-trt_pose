@@ -14,7 +14,11 @@ from PIL import Image
 import numpy as np
 import argparse
 from basler_utils import frame_extractor
+import matplotlib
+matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+import threading
 
 parser = argparse.ArgumentParser(description='3D pose from 2D')
 parser.add_argument('--calibration_matrix', type=str, required=True, help='')
@@ -103,6 +107,22 @@ def get_calib_parameters():
     fs.release()
     return calib_data
 
+def draw_3d_old(coord_3d_frames, ax):
+    for coord_3d in coord_3d_frames:
+        coord_3d = np.array(coord_3d).reshape(-1, 3)
+        ax.scatter(coord_3d[:, 0], coord_3d[:, 1], coord_3d[:, 2], marker='o')
+        plt.draw()
+        plt.pause(0.001)
+
+    # Show the plot
+    plt.show()
+
+def draw_3d(coord_3d, ax):
+    ax.scatter(coord_3d[:, 0], coord_3d[:, 1], coord_3d[:, 2], c='r', marker='o')
+    plt.draw()
+    plt.pause(0.001)
+    plt.show()
+
 def triangulate_points(cam1_matrix, cam2_matrix, points_cam1, points_cam2):
     K1 = cam1_matrix['camera_matrix']
     K2 = cam2_matrix['camera_matrix']
@@ -126,53 +146,53 @@ def triangulate_points(cam1_matrix, cam2_matrix, points_cam1, points_cam2):
 
 frame_extr = frame_extractor()
 frame_extr.start_cams()
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+ax.set_xlabel('X')
+ax.set_ylabel('Y')
+ax.set_zlabel('Z')
+plt.ion()
+plt.show()
 
 while cv2.waitKey(1) != 27:
-    #Get Calib Matrices
-    calib = get_calib_parameters()
-    """
-    for index, (camera_name, camera_data) in enumerate(calib.items()):
-        print(f"  Camera {index} ({camera_name}):")
-        print(f"  Camera Matrix:\n{camera_data['camera_matrix']}")
-        print(f"  Distortion Vector:\n{camera_data['distortion_vector']}")
-        print(f"  Camera Pose Matrix:\n{camera_data['camera_pose_matrix']}")
-        print(f"  Image Width: {camera_data['img_width']}")
-        print(f"  Image Height: {camera_data['img_height']}")
-        print("\n")
-    """
+    try:
+        #Get Calib Matrices
+        calib = get_calib_parameters()
+        """
+        for index, (camera_name, camera_data) in enumerate(calib.items()):
+            print(f"  Camera {index} ({camera_name}):")
+            print(f"  Camera Matrix:\n{camera_data['camera_matrix']}")
+            print(f"  Distortion Vector:\n{camera_data['distortion_vector']}")
+            print(f"  Camera Pose Matrix:\n{camera_data['camera_pose_matrix']}")
+            print(f"  Image Width: {camera_data['img_width']}")
+            print(f"  Image Height: {camera_data['img_height']}")
+            print("\n")
+        """
+        frames = frame_extr.grab_multiple_frames()
 
-    frames = frame_extr.grab_multiple_frames()
+        # Get 2D coordinates
+        joints = []
+        for index, frame in enumerate(frames):
+            coord = execute_frame(frame)[1]
+            joints.append(coord)
+            #print(f"Coordinates frame {index}: {coord}")
 
-    # Get 2D coordinates
-    joints = []
-    for index, frame in enumerate(frames):
-        coord = execute_frame(frame)[1]
-        joints.append(coord)
-        print(f"Coordinates frame {index}: {coord}")
+        #print(f"\n{joints}\n")
 
-    # Triangulate
-    joints_3d = []
-    for i in range(len(joints[0])):
-        points_cam1 = joints[0][i]
-        points_cam2 = joints[1][i]
+        # Triangulate
+        points_cam1 = joints[0]
+        points_cam2 = joints[1]
+        #print(f"points cam1 {points_cam1}\npoints cam2 {points_cam2}")
 
-        try:
-            coord_3d = triangulate_points(calib['camera_0'], calib['camera_1'], points_cam1, points_cam2)
-            #joints_3d.append(coord_3d)
-            print(f"Coordinates 3D: {coord_3d}")
-            fig = plt.figure()
-            ax = fig.add_subplot(111, projection='3d')
-            ax.scatter(coord_3d[0], coord_3d[1], coord_3d[2], c='r', marker='o')
-            ax.set_xlabel('X')
-            ax.set_ylabel('Y')
-            ax.set_zlabel('Z')
-            plt.show()
-            plt.pause(5)
+        coord_3d = triangulate_points(calib['camera_0'], calib['camera_1'], points_cam1, points_cam2)
+        #joints_3d.append(coord_3d)
+        print(f"\nCoordinates 3D: {coord_3d}\n")
 
-        except:
-            continue
+        draw_3d(np.array(coord_3d), ax)
 
-
+    except Exception as e:
+        print(f"Error: {e}")
+        continue
 
 frame_extr.stop_multiple_cams()
 
