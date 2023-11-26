@@ -14,6 +14,7 @@ from PIL import Image
 import numpy as np
 import argparse
 from basler_utils import frame_extractor
+import matplotlib.pyplot as plt
 
 parser = argparse.ArgumentParser(description='3D pose from 2D')
 parser.add_argument('--calibration_matrix', type=str, required=True, help='')
@@ -102,6 +103,27 @@ def get_calib_parameters():
     fs.release()
     return calib_data
 
+def triangulate_points(cam1_matrix, cam2_matrix, points_cam1, points_cam2):
+    K1 = cam1_matrix['camera_matrix']
+    K2 = cam2_matrix['camera_matrix']
+
+    R1 = cam1_matrix['camera_pose_matrix'][:3, :3]
+    R2 = cam2_matrix['camera_pose_matrix'][:3, :3]
+
+    t1 = cam1_matrix['camera_pose_matrix'][:3, 3].reshape(3, 1)
+    t2 = cam2_matrix['camera_pose_matrix'][:3, 3].reshape(3, 1)
+
+    P1 = np.hstack((R1, t1))
+    P1 = np.dot(K1, P1)
+
+    P2 = np.hstack((R2, t2))
+    P2 = np.dot(K2, P2)
+
+    points_4d_homogeneous = cv2.triangulatePoints(P1, P2, np.array(points_cam1).T, np.array(points_cam2).T)
+    points_3d = (points_4d_homogeneous[:3, :] / points_4d_homogeneous[3, :]).T
+
+    return points_3d
+
 frame_extr = frame_extractor()
 frame_extr.start_cams()
 
@@ -118,8 +140,7 @@ while cv2.waitKey(1) != 27:
         print(f"  Image Height: {camera_data['img_height']}")
         print("\n")
     """
-    # Get Frames
-    #frames = frame_extr.grab_one_frame_per_camera()
+
     frames = frame_extr.grab_multiple_frames()
 
     # Get 2D coordinates
@@ -130,6 +151,27 @@ while cv2.waitKey(1) != 27:
         print(f"Coordinates frame {index}: {coord}")
 
     # Triangulate
+    joints_3d = []
+    for i in range(len(joints[0])):
+        points_cam1 = joints[0][i]
+        points_cam2 = joints[1][i]
+
+        try:
+            coord_3d = triangulate_points(calib['camera_0'], calib['camera_1'], points_cam1, points_cam2)
+            #joints_3d.append(coord_3d)
+            print(f"Coordinates 3D: {coord_3d}")
+            fig = plt.figure()
+            ax = fig.add_subplot(111, projection='3d')
+            ax.scatter(coord_3d[0], coord_3d[1], coord_3d[2], c='r', marker='o')
+            ax.set_xlabel('X')
+            ax.set_ylabel('Y')
+            ax.set_zlabel('Z')
+            plt.show()
+            plt.pause(5)
+
+        except:
+            continue
+
 
 
 frame_extr.stop_multiple_cams()
