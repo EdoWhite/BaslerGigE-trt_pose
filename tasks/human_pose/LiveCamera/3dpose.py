@@ -56,21 +56,40 @@ def preprocess_jpeg(image):
     image.sub_(mean[:, None, None]).div_(std[:, None, None])
     return image[None, ...]
 
-def get_joint_coordinates(image, counts, objects, peaks):
+def get_joint_coordinates_old(image, counts, objects, peaks):
     joint_coordinates = []
-
     height, width, _ = image.shape
     #K = topology.shape[0]
-
     count = int(counts[0])
     for i in range(count):
         obj = objects[0][i]
         coordinates = []
-
         for j in range(len(obj)):
             k = int(obj[j])
             if k >= 0:
                 peak = peaks[0][j][k]
+                x = round(float(peak[1]) * width)
+                y = round(float(peak[0]) * height)
+                coordinates.append((x, y))
+        joint_coordinates.append(coordinates)
+    return joint_coordinates
+
+def get_joint_coordinates( image, object_counts, objects, normalized_peaks):
+    joint_coordinates = []
+
+    height = image.shape[0]
+    width = image.shape[1]
+
+    count = int(object_counts[0])
+    for i in range(count):
+        coordinates = []
+        obj = objects[0][i]
+        C = obj.shape[0]
+
+        for j in range(C):
+            k = int(obj[j])
+            if k >= 0:
+                peak = normalized_peaks[0][j][k]
                 x = round(float(peak[1]) * width)
                 y = round(float(peak[0]) * height)
                 coordinates.append((x, y))
@@ -113,8 +132,6 @@ def draw_3d_old(coord_3d_frames, ax):
         ax.scatter(coord_3d[:, 0], coord_3d[:, 1], coord_3d[:, 2], marker='o')
         plt.draw()
         plt.pause(0.001)
-
-    # Show the plot
     plt.show()
 
 def draw_3d(coord_3d, ax):
@@ -146,6 +163,7 @@ def triangulate_points(cam1_matrix, cam2_matrix, points_cam1, points_cam2):
 
 frame_extr = frame_extractor()
 frame_extr.start_cams()
+
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 ax.set_xlabel('X')
@@ -155,35 +173,35 @@ plt.ion()
 plt.show()
 
 while cv2.waitKey(1) != 27:
+
+    #Get Calib Matrices
+    calib = get_calib_parameters()
+    """
+    for index, (camera_name, camera_data) in enumerate(calib.items()):
+        print(f"  Camera {index} ({camera_name}):")
+        print(f"  Camera Matrix:\n{camera_data['camera_matrix']}")
+        print(f"  Distortion Vector:\n{camera_data['distortion_vector']}")
+        print(f"  Camera Pose Matrix:\n{camera_data['camera_pose_matrix']}")
+        print(f"  Image Width: {camera_data['img_width']}")
+        print(f"  Image Height: {camera_data['img_height']}")
+        print("\n")
+    """
+    frames = frame_extr.grab_multiple_frames()
+
+    # Get 2D coordinates
+    joints = []
+    for index, frame in enumerate(frames):
+        coord = execute_frame(frame)[1]
+        joints.append(coord)
+        #print(f"Coordinates frame {index}: {coord}")
+
+    #print(f"\n{joints}\n")
+
+    # Triangulate
+    points_cam1 = joints[0]
+    points_cam2 = joints[1]
+    #print(f"points cam1 {points_cam1}\npoints cam2 {points_cam2}")
     try:
-        #Get Calib Matrices
-        calib = get_calib_parameters()
-        """
-        for index, (camera_name, camera_data) in enumerate(calib.items()):
-            print(f"  Camera {index} ({camera_name}):")
-            print(f"  Camera Matrix:\n{camera_data['camera_matrix']}")
-            print(f"  Distortion Vector:\n{camera_data['distortion_vector']}")
-            print(f"  Camera Pose Matrix:\n{camera_data['camera_pose_matrix']}")
-            print(f"  Image Width: {camera_data['img_width']}")
-            print(f"  Image Height: {camera_data['img_height']}")
-            print("\n")
-        """
-        frames = frame_extr.grab_multiple_frames()
-
-        # Get 2D coordinates
-        joints = []
-        for index, frame in enumerate(frames):
-            coord = execute_frame(frame)[1]
-            joints.append(coord)
-            #print(f"Coordinates frame {index}: {coord}")
-
-        #print(f"\n{joints}\n")
-
-        # Triangulate
-        points_cam1 = joints[0]
-        points_cam2 = joints[1]
-        #print(f"points cam1 {points_cam1}\npoints cam2 {points_cam2}")
-
         coord_3d = triangulate_points(calib['camera_0'], calib['camera_1'], points_cam1, points_cam2)
         #joints_3d.append(coord_3d)
         print(f"\nCoordinates 3D: {coord_3d}\n")
