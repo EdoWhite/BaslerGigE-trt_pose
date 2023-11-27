@@ -140,6 +140,12 @@ def draw_3d(coord_3d, ax):
     plt.pause(0.001)
     plt.show()
 
+def draw_2d(coord, ax):
+    ax.scatter(coord[:, 0], coord[:, 1], c='g', marker='o')
+    plt.draw()
+    plt.pause(0.001)
+    plt.show()
+
 def triangulate_points(cam1_matrix, cam2_matrix, points_cam1, points_cam2):
     K1 = cam1_matrix['camera_matrix']
     K2 = cam2_matrix['camera_matrix']
@@ -172,20 +178,27 @@ ax.set_zlabel('Z')
 plt.ion()
 plt.show()
 
-while cv2.waitKey(1) != 27:
+fig2d = plt.figure()
+ax2d = fig.add_subplot(111, projection='2d')
+ax2d.set_xlabel('X')
+ax2d.set_ylabel('Y')
+plt.ion()
+plt.show()
 
-    #Get Calib Matrices
-    calib = get_calib_parameters()
-    """
-    for index, (camera_name, camera_data) in enumerate(calib.items()):
-        print(f"  Camera {index} ({camera_name}):")
-        print(f"  Camera Matrix:\n{camera_data['camera_matrix']}")
-        print(f"  Distortion Vector:\n{camera_data['distortion_vector']}")
-        print(f"  Camera Pose Matrix:\n{camera_data['camera_pose_matrix']}")
-        print(f"  Image Width: {camera_data['img_width']}")
-        print(f"  Image Height: {camera_data['img_height']}")
-        print("\n")
-    """
+#Get Calib Matrices
+calib = get_calib_parameters()
+"""
+for index, (camera_name, camera_data) in enumerate(calib.items()):
+    print(f"  Camera {index} ({camera_name}):")
+    print(f"  Camera Matrix:\n{camera_data['camera_matrix']}")
+    print(f"  Distortion Vector:\n{camera_data['distortion_vector']}")
+    print(f"  Camera Pose Matrix:\n{camera_data['camera_pose_matrix']}")
+    print(f"  Image Width: {camera_data['img_width']}")
+    print(f"  Image Height: {camera_data['img_height']}")
+    print("\n")
+"""
+
+while cv2.waitKey(1) != 27:
     frames = frame_extr.grab_multiple_frames()
 
     # Get 2D coordinates
@@ -193,6 +206,7 @@ while cv2.waitKey(1) != 27:
     for index, frame in enumerate(frames):
         coord = execute_frame(frame)[1]
         joints.append(coord)
+        draw_2d(np.array(coord))
         #print(f"Coordinates frame {index}: {coord}")
 
     #print(f"\n{joints}\n")
