@@ -59,6 +59,7 @@ class frame_extractor:
            print(f"Camera {camera.GetDeviceInfo().GetModelName()}: TriggerSource is {camera.TriggerSource.GetValue()}")
 
         self.cam_array.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
+        return(num_cameras)
 
     
     def grab_multiple_cams(self, timeout:int = 5000):
