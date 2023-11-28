@@ -98,7 +98,7 @@ class frame_extractor:
             if grabResult.GrabSucceeded():
                 # Access the image data.
                 cam_id = grabResult.GetCameraContext()
-                print("Camera ", cam_id, ": ", self.cam_array[cam_id].GetDeviceInfo().GetSerialNumber())
+                #print("Camera ", cam_id, ": ", self.cam_array[cam_id].GetDeviceInfo().GetSerialNumber())
                 image = self.converter.Convert(grabResult)
                 img = image.GetArray()
                 #print(img)

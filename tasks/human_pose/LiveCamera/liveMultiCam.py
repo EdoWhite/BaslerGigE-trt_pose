@@ -46,14 +46,19 @@ def preprocess_jpeg(image):
     image.sub_(mean[:, None, None]).div_(std[:, None, None])
     return image[None, ...]
 
-def execute_frame(image):
+def execute_frame(index, image, draw_plane=False):
     data = preprocess_jpeg(image)
     cmap, paf = model_trt(data)
     cmap, paf = cmap.detach().cpu(), paf.detach().cpu()
     counts, objects, peaks = parse_objects(cmap, paf)#, cmap_threshold=0.15, link_threshold=0.15)
     draw_objects(image, counts, objects, peaks)
+    if (draw_plane and index == 0):
+        cv2.rectangle(image, (812,614), (1686,1150), (0,0,255), 4)
+    elif (draw_plane and index == 1):
+        cv2.rectangle(image, (1255,667), (923,1176), (0,0,255), 4)
+
     rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    return rgb_image
+    return image
 
 def preprocess_jpeg_batch(images):
     global device
@@ -77,7 +82,7 @@ def execute_frame_batch(images):
     return res
 
 frame_extr = frame_extractor()
-frame_extr.start_cams()
+frame_extr.start_cams(signal_period=5000)
 
 cv2.namedWindow("Camera1", cv2.WINDOW_NORMAL)
 cv2.namedWindow("Camera2", cv2.WINDOW_NORMAL)
@@ -86,7 +91,7 @@ while cv2.waitKey(1) != 27:
     frames = frame_extr.grab_multiple_frames()
     #res1, res2 = execute_frame_batch(frames)
     for index, frame in enumerate(frames):
-        cv2.imshow(f"Camera{index+1}", execute_frame(frame))
+        cv2.imshow(f"Camera{index+1}", execute_frame(index, frame, False))
 
 # Release the OpenCV window and close the camera
 cv2.destroyAllWindows()
