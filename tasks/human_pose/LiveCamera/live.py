@@ -80,8 +80,12 @@ while cv2.waitKey(1) != 27:
 
             res = execute_frame(img)
             cv2.imshow("Pose Feed", res)
+    else:
+        grabResult.Release()
+        camera.Close()
+        camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
 
-    grabResult.Release()
+grabResult.Release()
 
 # Release the OpenCV window and close the camera
 cv2.destroyAllWindows()
