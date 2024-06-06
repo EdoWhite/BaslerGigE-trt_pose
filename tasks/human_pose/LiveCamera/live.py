@@ -81,6 +81,7 @@ while cv2.waitKey(1) != 27:
             res = execute_frame(img)
             cv2.imshow("Pose Feed", res)
     else:
+        print("Error in grabbing, closing and reopening")
         grabResult.Release()
         camera.Close()
         camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
